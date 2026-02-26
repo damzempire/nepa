@@ -69,11 +69,6 @@ const options: swaggerJsdoc.Options = {
         },
       },
     },
-    security: [
-      {
-        ApiKeyAuth: [],
-      },
-    ],
   },
   apis: ["./**/*.ts"], // Scan all ts files for annotations
 };
