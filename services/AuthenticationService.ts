@@ -4,6 +4,8 @@ import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { PrismaClient, User, UserRole, UserStatus, TwoFactorMethod } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { auditService } from './AuditService';
+import { AuditAction, AuditSeverity, AuditStatus } from '../databases/audit-service/schema.prisma';
 
 const prisma = new PrismaClient();
 
@@ -86,10 +88,19 @@ export class AuthenticationService {
         }
       });
 
-      // Log audit
-      await this.logAudit(user.id, 'USER_REGISTER', 'user', user.id, {
-        email: data.email,
-        username: data.username
+      // Log audit using new audit service
+      await auditService.logAudit({
+        action: AuditAction.USER_REGISTER,
+        resource: 'user',
+        resourceId: user.id,
+        description: `New user registered - ${data.email}`,
+        severity: AuditSeverity.MEDIUM,
+        status: AuditStatus.SUCCESS,
+        metadata: {
+          email: data.email,
+          username: data.username,
+          registrationMethod: 'email'
+        }
       });
 
       return {
@@ -223,9 +234,18 @@ export class AuthenticationService {
           }
         });
 
-        // Log audit
-        await this.logAudit(user.id, 'USER_REGISTER_WALLET', 'user', user.id, {
-          walletAddress
+        // Log audit using new audit service
+        await auditService.logAudit({
+          action: AuditAction.USER_REGISTER,
+          resource: 'user',
+          resourceId: user.id,
+          description: `New user registered with wallet - ${walletAddress}`,
+          severity: AuditSeverity.MEDIUM,
+          status: AuditStatus.SUCCESS,
+          metadata: {
+            walletAddress,
+            registrationMethod: 'wallet'
+          }
         });
       }
 
@@ -400,6 +420,24 @@ export class AuthenticationService {
     // For SMS/Email 2FA, you would verify against sent codes
     // This is a placeholder for SMS/Email verification
     return false;
+  }
+
+  async disableTwoFactor(userId: string): Promise<{ error?: string }> {
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          twoFactorEnabled: false,
+          twoFactorMethod: TwoFactorMethod.NONE,
+          twoFactorSecret: null
+        }
+      });
+
+      return {};
+    } catch (error) {
+      console.error('Disable 2FA error:', error);
+      return { error: 'Failed to disable two-factor authentication' };
+    }
   }
 
   async createSession(userId: string, userAgent?: string, ipAddress?: string): Promise<SessionData> {
