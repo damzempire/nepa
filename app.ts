@@ -11,6 +11,13 @@ import { upload } from './middleware/upload';
 import { uploadDocument } from './controllers/DocumentController';
 import { getDashboardData, generateReport, exportData } from './controllers/AnalyticsController';
 import { applyPaymentSecurity, processPayment, getPaymentHistory, validatePayment } from './controllers/PaymentController';
+import { AuthenticationController } from './controllers/AuthenticationController';
+import { UserController } from './controllers/UserController';
+import { UserRole } from '@prisma/client';
+import { swaggerSpec } from './src/config/swagger';
+import { analyticsService } from './services/analytics';
+import { performanceMonitor } from './services/performanceMonitoring';
+import logger from './services/logger';
 
 
 const app = express();
@@ -116,6 +123,7 @@ app.post('/api/user/change-password', authenticate, userController.changePasswor
 // Two-factor authentication endpoints
 app.post('/api/user/2fa/enable', authenticate, authController.enableTwoFactor.bind(authController));
 app.post('/api/user/2fa/verify', authenticate, authController.verifyTwoFactor.bind(authController));
+app.post('/api/user/2fa/disable', authenticate, authController.disableTwoFactor.bind(authController));
 
 // User sessions
 app.get('/api/user/sessions', authenticate, userController.getUserSessions.bind(userController));
