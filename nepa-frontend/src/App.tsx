@@ -1,10 +1,15 @@
 import React from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { KeyboardShortcutProvider } from './contexts/KeyboardShortcutContext';
 import { ThemeToggle } from './components/ThemeToggle';
+import { KeyboardShortcutHelp } from './components/KeyboardShortcutHelp';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { createSkipLink, landmarkRoles } from './utils/accessibility';
 import './index.css';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  useGlobalShortcuts();
+
   React.useEffect(() => {
     // Add skip link
     const skipLink = createSkipLink('main-content');
@@ -18,14 +23,16 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-background text-foreground">
-        <header role={landmarkRoles.banner} className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-foreground">NEPA Platform</h1>
+    <div className="min-h-screen bg-background text-foreground">
+      <header role={landmarkRoles.banner} className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-foreground">NEPA Platform</h1>
+          <div className="flex items-center gap-4">
+            <KeyboardShortcutHelp />
             <ThemeToggle />
           </div>
-        </header>
+        </div>
+      </header>
         
         <nav role={landmarkRoles.navigation} aria-label="Main navigation">
           {/* Navigation content can go here */}
@@ -65,12 +72,22 @@ const App: React.FC = () => {
         <footer role={landmarkRoles.contentinfo} className="border-t border-border bg-card mt-12">
           <div className="container mx-auto px-4 py-6">
             <p className="text-muted-foreground text-center">
-              2024 NEPA Platform. All rights reserved.
+              2029 NEPA Platform. All rights reserved.
             </p>
           </div>
         </footer>
       </div>
-    </ThemeProvider>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <KeyboardShortcutProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </KeyboardShortcutProvider>
   );
 };
 
