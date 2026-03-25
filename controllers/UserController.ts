@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient, UserStatus, UserRole } from '@prisma/client';
 import Joi from 'joi';
 import bcrypt from 'bcryptjs';
+import { invalidateUserCache } from '../middleware/cache';
 
 const prisma = new PrismaClient();
 
@@ -190,6 +191,9 @@ export class UserController {
         }
       });
 
+      // Invalidate user cache after profile update
+      await invalidateUserCache(user.id);
+
       res.json({
         message: 'Profile updated successfully',
         user: updatedUser
@@ -217,6 +221,9 @@ export class UserController {
           ...value
         }
       });
+
+      // Invalidate user cache after preferences update
+      await invalidateUserCache(user.id);
 
       res.json({
         message: 'Preferences updated successfully',
@@ -277,6 +284,9 @@ export class UserController {
         data: { passwordHash: newPasswordHash }
       });
 
+      // Invalidate user cache after password change
+      await invalidateUserCache(user.id);
+
       res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error('Change password error:', error);
@@ -320,6 +330,9 @@ export class UserController {
           updatedAt: true
         }
       });
+
+      // Invalidate cache for the updated user
+      await invalidateUserCache(id);
 
       res.json({
         message: 'User role updated successfully',
@@ -378,6 +391,9 @@ export class UserController {
         data: { isActive: false }
       });
 
+      // Invalidate user cache after session revocation
+      await invalidateUserCache(user.id);
+
       res.json({ message: 'Session revoked successfully' });
     } catch (error) {
       console.error('Revoke session error:', error);
@@ -422,6 +438,9 @@ export class UserController {
         where: { userId: id },
         data: { isActive: false }
       });
+
+      // Invalidate cache for the deleted user
+      await invalidateUserCache(id);
 
       res.json({ message: 'User deleted successfully' });
     } catch (error) {

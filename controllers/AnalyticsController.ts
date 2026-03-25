@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AnalyticsService } from '../AnalyticsService';
+import { invalidateCacheByPattern } from '../middleware/cache';
 
 const analyticsService = new AnalyticsService();
 
@@ -40,6 +41,10 @@ export const generateReport = async (req: Request, res: Response) => {
     }
 
     const report = await analyticsService.saveReport(userId, title, type, data);
+    
+    // Invalidate analytics cache after report generation
+    await invalidateCacheByPattern('analytics');
+    
     res.status(201).json(report);
   } catch (error) {
     console.error('Report generation error:', error);

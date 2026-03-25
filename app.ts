@@ -1,17 +1,23 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { apiLimiter, ddosDetector, checkBlockedIP, ipRestriction, progressiveLimiter, authLimiter } from './middleware/rateLimiter';
-import { configureSecurity } from './middleware/security';
+import { configureSecurity } from './src/config/security';
 import { apiKeyAuth } from './middleware/auth';
 import { authenticate, authorize, optionalAuth } from './middleware/authentication';
 import { loggingMiddleware, setupGlobalErrorHandling, errorTracker } from './middleware/logger';
 import { errorTracker as abuseDetector } from './middleware/abuseDetection';
-import { swaggerSpec } from './swagger';
-import { upload } from './middleware/upload';
+import { swaggerSpec } from './src/config/swagger';
+import { upload } from './src/utils/upload';
 import { uploadDocument } from './controllers/DocumentController';
 import { getDashboardData, generateReport, exportData } from './controllers/AnalyticsController';
 import { applyPaymentSecurity, processPayment, getPaymentHistory, validatePayment } from './controllers/PaymentController';
-
+import { cacheMiddleware, invalidateCache, getCacheHealth, getCacheStats, clearAllCache } from './middleware/cache';
+import { AuthenticationController } from './controllers/AuthenticationController';
+import { UserController } from './controllers/UserController';
+import { PrismaClient, UserStatus, UserRole } from '@prisma/client';
+import { AnalyticsService } from './services/AnalyticsService';
+import { performanceMonitor } from './services/performanceMonitoring';
+import { logger } from './services/logger';
 
 const app = express();
 
@@ -30,6 +36,10 @@ if (process.env.SENTRY_DSN) {
     release: process.env.npm_package_version
   });
 }
+
+// Initialize services
+const analyticsService = new AnalyticsService();
+const prisma = new PrismaClient();
 
 // Initialize controllers
 const authController = new AuthenticationController();
@@ -83,18 +93,22 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 10. Monitoring endpoints
-app.get('/api/monitoring/metrics', apiKeyAuth, (req, res) => {
-  const analytics = analyticsService.getAnalyticsData();
-  const performance = performanceMonitor.getHealthStatus();
-  
-  res.json({
-    analytics,
-    performance,
-    requestMetrics: performanceMonitor.getRequestMetrics(100),
-    customMetrics: performanceMonitor.getCustomMetrics(100)
-  });
-});
+// 10. Monitoring endpoints (cached)
+app.get('/api/monitoring/metrics', 
+  apiKeyAuth, 
+  cacheMiddleware({ ttl: 300 }), // Cache for 5 minutes
+  (req, res) => {
+    const analytics = analyticsService.getAnalyticsData();
+    const performance = performanceMonitor.getHealthStatus();
+    
+    res.json({
+      analytics,
+      performance,
+      requestMetrics: performanceMonitor.getRequestMetrics(100),
+      customMetrics: performanceMonitor.getCustomMetrics(100)
+    });
+  }
+);
 
 // 11. Protected API Routes
 app.use('/api', apiKeyAuth);
@@ -107,29 +121,29 @@ app.post('/api/auth/refresh', authLimiter, authController.refreshToken.bind(auth
 app.post('/api/auth/logout', authenticate, authController.logout.bind(authController));
 
 // User profile endpoints
-app.get('/api/user/profile', authenticate, authController.getProfile.bind(authController));
-app.put('/api/user/profile', authenticate, userController.updateProfile.bind(userController));
-app.get('/api/user/preferences', authenticate, userController.getPreferences.bind(userController));
-app.put('/api/user/preferences', authenticate, userController.updatePreferences.bind(userController));
-app.post('/api/user/change-password', authenticate, userController.changePassword.bind(userController));
+app.get('/api/user/profile', authenticate, cacheMiddleware({ ttl: 600 }), authController.getProfile.bind(authController));
+app.put('/api/user/profile', authenticate, invalidateCache({ userId: true }), userController.updateProfile.bind(userController));
+app.get('/api/user/preferences', authenticate, cacheMiddleware({ ttl: 600 }), userController.getPreferences.bind(userController));
+app.put('/api/user/preferences', authenticate, invalidateCache({ userId: true }), userController.updatePreferences.bind(userController));
+app.post('/api/user/change-password', authenticate, invalidateCache({ userId: true }), userController.changePassword.bind(userController));
 
 // Two-factor authentication endpoints
 app.post('/api/user/2fa/enable', authenticate, authController.enableTwoFactor.bind(authController));
 app.post('/api/user/2fa/verify', authenticate, authController.verifyTwoFactor.bind(authController));
 
 // User sessions
-app.get('/api/user/sessions', authenticate, userController.getUserSessions.bind(userController));
-app.delete('/api/user/sessions/:sessionId', authenticate, userController.revokeSession.bind(userController));
+app.get('/api/user/sessions', authenticate, cacheMiddleware({ ttl: 300 }), userController.getUserSessions.bind(userController));
+app.delete('/api/user/sessions/:sessionId', authenticate, invalidateCache({ userId: true }), userController.revokeSession.bind(userController));
 
 // Admin user management endpoints
-app.get('/api/admin/users', authenticate, authorize(UserRole.ADMIN), userController.getAllUsers.bind(userController));
-app.get('/api/admin/users/:id', authenticate, authorize(UserRole.ADMIN), userController.getUserById.bind(userController));
-app.put('/api/admin/users/:id/role', authenticate, authorize(UserRole.ADMIN), userController.updateUserRole.bind(userController));
-app.delete('/api/admin/users/:id', authenticate, authorize(UserRole.ADMIN), userController.deleteUser.bind(userController));
+app.get('/api/admin/users', authenticate, authorize(UserRole.ADMIN), cacheMiddleware({ ttl: 300 }), userController.getAllUsers.bind(userController));
+app.get('/api/admin/users/:id', authenticate, authorize(UserRole.ADMIN), cacheMiddleware({ ttl: 600 }), userController.getUserById.bind(userController));
+app.put('/api/admin/users/:id/role', authenticate, authorize(UserRole.ADMIN), invalidateCache({ patterns: ['user'] }), userController.updateUserRole.bind(userController));
+app.delete('/api/admin/users/:id', authenticate, authorize(UserRole.ADMIN), invalidateCache({ patterns: ['user'] }), userController.deleteUser.bind(userController));
 
 // Payment endpoints with enhanced security
-app.post('/api/payment/process', ...applyPaymentSecurity, processPayment);
-app.get('/api/payment/history', apiKeyAuth, getPaymentHistory);
+app.post('/api/payment/process', ...applyPaymentSecurity, invalidateCache({ patterns: ['payment', 'analytics'] }), processPayment);
+app.get('/api/payment/history', apiKeyAuth, cacheMiddleware({ ttl: 180 }), getPaymentHistory);
 app.post('/api/payment/validate', ...applyPaymentSecurity, validatePayment);
 
 // Example protected route
@@ -185,7 +199,7 @@ app.post('/api/documents/upload', apiKeyAuth, upload.single('file'), uploadDocum
  *       200:
  *         description: Dashboard data retrieved
  */
-app.get('/api/analytics/dashboard', apiKeyAuth, getDashboardData);
+app.get('/api/analytics/dashboard', apiKeyAuth, cacheMiddleware({ ttl: 1800 }), getDashboardData);
 
 /**
  * @openapi
@@ -198,11 +212,37 @@ app.get('/api/analytics/dashboard', apiKeyAuth, getDashboardData);
  *       201:
  *         description: Report created
  */
-app.post('/api/analytics/reports', apiKeyAuth, generateReport);
+app.post('/api/analytics/reports', apiKeyAuth, invalidateCache({ patterns: ['analytics'] }), generateReport);
 
 // Export Route
-app.get('/api/analytics/export', apiKeyAuth, exportData);
+app.get('/api/analytics/export', apiKeyAuth, cacheMiddleware({ ttl: 3600 }), exportData);
 
+// Cache management endpoints (admin only)
+app.get('/api/cache/health', authenticate, authorize(UserRole.ADMIN), async (req, res) => {
+  try {
+    const health = await getCacheHealth();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get cache health' });
+  }
+});
 
+app.get('/api/cache/stats', authenticate, authorize(UserRole.ADMIN), async (req, res) => {
+  try {
+    const stats = await getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get cache stats' });
+  }
+});
+
+app.delete('/api/cache', authenticate, authorize(UserRole.SUPER_ADMIN), async (req, res) => {
+  try {
+    await clearAllCache();
+    res.json({ message: 'Cache cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear cache' });
+  }
+});
 
 export default app;
