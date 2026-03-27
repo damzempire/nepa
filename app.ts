@@ -119,6 +119,7 @@ app.use('/api/fraud', fraudRoutes);
 
 n
 
+
 // 12. API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api-docs/v1', swaggerUi.serve, swaggerUi.setup(getVersionedSwaggerSpec('v1')));
