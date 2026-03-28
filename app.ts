@@ -2,7 +2,8 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { apiLimiter, ddosDetector, checkBlockedIP, ipRestriction, progressiveLimiter, authLimiter } from './middleware/rateLimiter';
 import { configureSecurity } from './middleware/security';
-import { apiKeyAuth } from './middleware/auth';
+import { apiKeyAuth } from './src/config/auth';
+import { authenticate, authorize, optionalAuth } from './middleware/authentication';
 import { loggingMiddleware, setupGlobalErrorHandling, errorTracker, logger } from './middleware/logger';
 import { errorTracker as abuseDetector } from './middleware/abuseDetection';
 
@@ -11,38 +12,11 @@ import { uploadDocument } from './controllers/DocumentController';
 import { getDashboardData, generateReport, exportData } from './controllers/AnalyticsController';
 import { applyPaymentSecurity, processPayment, getPaymentHistory, validatePayment } from './controllers/PaymentController';
 import { setupRateLimitRoutes } from './routes/rateLimitRoutes';
-import auditRoutes from './routes/auditRoutes';
-import fraudRoutes from './routes/fraudRoutes';
-
-import { auditCleanupService } from './services/AuditCleanupService';
-import { registerAuditHandlers } from './databases/event-patterns/handlers/auditHandlers';
-import { EventBus } from './databases/event-patterns/EventBus';
 import { AuthenticationController } from './controllers/AuthenticationController';
 import { UserController } from './controllers/UserController';
-import { authenticate, authorize } from './middleware/authentication';
-
-// Define UserRole locally since it's not exported from @prisma/client
-enum UserRole {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-  SUPER_ADMIN = 'SUPER_ADMIN'
-}
-
-// Initialize controllers
-const authController = new AuthenticationController();
-const userController = new UserController();
-
-// Mock services for now - replace with actual implementations
-const performanceMonitor = {
-  getHealthStatus: () => ({ status: 'healthy' }),
-  getMemoryUsage: () => ({ heapUsed: 0, heapTotal: 0, external: 0 }),
-  getRequestMetrics: (limit: number) => [],
-  getCustomMetrics: (limit: number) => []
-};
-
-const analyticsService = {
-  getAnalyticsData: () => ({ userEvents: [], activeUsers: 0 })
-};
+import { performanceMonitor } from './services/performanceMonitoring';
+import analyticsService from './services/analytics';
+import { UserRole } from '@prisma/client';
 
 const app = express();
 
@@ -272,58 +246,7 @@ app.get('/api/analytics/dashboard', apiKeyAuth, getDashboardData);
  */
 app.post('/api/analytics/reports', apiKeyAuth, generateReport);
 app.get('/api/analytics/export', apiKeyAuth, exportData);
-
-// Additional authentication routes for wallet login and 2FA
-app.post('/api/auth/wallet', 
-  authLimiter, 
-  auditAuth(AuditAction.USER_LOGIN), 
-  authController.loginWithWallet.bind(authController)
-);
-app.post('/api/auth/refresh', 
-  authLimiter, 
-  authController.refreshToken.bind(authController)
-);
-
-// Two-factor authentication endpoints
-app.post('/api/user/2fa/enable', 
-  authenticate, 
-  auditAuth(AuditAction.USER_ENABLE_2FA), 
-  authController.enableTwoFactor.bind(authController)
-);
-app.post('/api/user/2fa/disable', 
-  authenticate, 
-  auditAuth(AuditAction.USER_DISABLE_2FA), 
-  authController.disableTwoFactor.bind(authController)
-);
-
-// User sessions
-app.get('/api/user/sessions', authenticate, userController.getUserSessions.bind(userController));
-app.delete('/api/user/sessions/:sessionId', 
-  authenticate, 
-  auditAuth(AuditAction.USER_REVOKE_SESSION), 
-  userController.revokeSession.bind(userController)
-);
-
-// Initialize audit system
-const initializeAuditSystem = async () => {
-  try {
-    // Register audit event handlers
-    const eventBus = EventBus.getInstance();
-    registerAuditHandlers(eventBus);
-    
-    // Start audit cleanup service
-    auditCleanupService.start();
-    
-    logger.info('Audit system initialized successfully');
-  } catch (error) {
-    logger.error('Failed to initialize audit system:', error);
-  }
-};
-
-// Initialize audit system on startup
-initializeAuditSystem();
-
-// Cache Management Routes (Admin only)
-app.use('/api/cache', cacheRoutes);
+// Setup global error handling
+setupGlobalErrorHandling(app);
 
 export default app;
