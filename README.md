@@ -1,6 +1,6 @@
 # NEPA - Decentralized Utility Payment Platform
 
-A decentralized utility payment platform enabling users to pay electricity & water bills using Stellar blockchain.
+A decentralized utility payment platform enabling users to pay electricity and water bills using Stellar blockchain.
 
 ## 🏗️ Architecture
 
@@ -115,16 +115,32 @@ Services communicate through domain events:
 
 ```typescript
 import EventBus from './databases/event-patterns/EventBus';
+import MessageBroker from './databases/event-patterns/MessageBroker';
 import { createPaymentSuccessEvent } from './databases/event-patterns/events';
 
-// Publish event
+// Publish event (in-memory)
 EventBus.publish(createPaymentSuccessEvent(paymentId, billId, userId, amount));
+
+// Publish event (persistent queue)
+await MessageBroker.connect();
+await MessageBroker.publish(event);
 
 // Subscribe to event
 EventBus.subscribe('payment.success', async (event) => {
   // Handle event
 });
 ```
+
+### Start Message Broker
+
+```bash
+npm run messaging:start  # Start RabbitMQ & Redis
+npm run test:events      # Test event system
+```
+
+### RabbitMQ Management
+- URL: http://localhost:15672
+- User: admin / Pass: admin
 
 ## 🔐 Saga Pattern
 
@@ -147,6 +163,8 @@ const result = await PaymentSaga.executePayment({
 - [Database Architecture](./databases/README.md)
 - [Migration Guide](./databases/migration-guide.md)
 - [Event Patterns](./databases/event-patterns/)
+- [Security Architecture](./SECURITY.md)
+- [Testing Framework](./api-testing/README.md)
 - [Saga Implementation](./databases/saga/)
 
 ## 🧪 Testing
@@ -156,6 +174,9 @@ npm test                    # Run all tests
 npm run test:unit          # Unit tests
 npm run test:integration   # Integration tests
 npm run test:e2e           # End-to-end tests
+npm run test:security      # Security vulnerability tests
+npm run test:contract      # Microservice contract tests
+npm run test:performance   # Performance & load tests
 npm run db:test-saga       # Test saga implementation
 ```
 
@@ -226,6 +247,9 @@ See [Observability Documentation](./observability/README.md) for details.
 - ✅ Automated backups and disaster recovery
 - ✅ Distributed monitoring and observability
 - ✅ SLA tracking and anomaly detection
+- ✅ Event-driven architecture with RabbitMQ
+- ✅ Asynchronous event processing with retry logic
+- ✅ Event sourcing for audit trails
 
 ## 📝 License
 
