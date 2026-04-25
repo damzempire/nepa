@@ -134,6 +134,55 @@ export interface TranslationDictionary {
     error: string;
     noBreadcrumbs: string;
   };
+  error: {
+    title: string;
+    subtitle: string;
+    unknownError: string;
+    fallback: {
+      title: string;
+      subtitle: string;
+      unknown: string;
+      errorId: string;
+      errorName: string;
+      errorStack: string;
+      technicalDetails: string;
+      retry: string;
+      reset: string;
+      retryAction: string;
+      resetAction: string;
+      home: string;
+      homeAction: string;
+      needHelp: string;
+      supportText: string;
+      contactSupport: string;
+      viewFAQ: string;
+      faq: string;
+    };
+    boundary: {
+      title: string;
+      subtitle: string;
+      showDetails: string;
+      componentStack: string;
+      errorStack: string;
+      errorId: string;
+      retry: string;
+      finalRetry: string;
+      reset: string;
+      goHome: string;
+      support: string;
+      contactSupport: string;
+    };
+    toast: {
+      dismiss: string;
+      progressLabel: string;
+    };
+    handler: {
+      networkError: string;
+      validationError: string;
+      timeoutError: string;
+      unknownError: string;
+    };
+  };
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -250,6 +299,55 @@ export const translations: Record<Language, TranslationDictionary> = {
       today: 'Today',
       selected: 'Selected',
       disabled: 'Disabled',
+    },
+    error: {
+      title: 'Something went wrong',
+      subtitle: 'We encountered an unexpected error',
+      unknownError: 'An unknown error occurred',
+      fallback: {
+        title: 'Something went wrong',
+        subtitle: 'We encountered an unexpected error',
+        unknown: 'An unknown error occurred',
+        errorId: 'Error ID',
+        errorName: 'Error Name',
+        errorStack: 'Error Stack',
+        technicalDetails: 'Technical details',
+        retry: 'Try Again',
+        reset: 'Start Over',
+        retryAction: 'Retry the last action',
+        resetAction: 'Reset error state',
+        home: 'Go Home',
+        homeAction: 'Go to homepage',
+        needHelp: 'Need Help?',
+        supportText: 'If this problem continues, our support team is here to help',
+        contactSupport: 'Contact Support',
+        viewFAQ: 'View FAQ',
+        faq: 'View FAQ'
+      },
+      boundary: {
+        title: 'Something went wrong',
+        subtitle: 'An unexpected error occurred',
+        showDetails: 'Show error details',
+        componentStack: 'Component Stack',
+        errorStack: 'Error Stack',
+        errorId: 'Error ID',
+        retry: 'Retry',
+        finalRetry: 'Final Retry',
+        reset: 'Reset',
+        goHome: 'Go Home',
+        support: 'Support',
+        contactSupport: 'Contact Support'
+      },
+      toast: {
+        dismiss: 'Dismiss notification',
+        progressLabel: 'Progress: {{progress}}%'
+      },
+      handler: {
+        networkError: 'Network error occurred',
+        validationError: 'Validation error',
+        timeoutError: 'Operation timed out',
+        unknownError: 'Unknown error occurred'
+      }
     },
     datePicker: {
       toggleCalendar: 'Toggle calendar',
@@ -385,6 +483,55 @@ export const translations: Record<Language, TranslationDictionary> = {
       today: 'Hoy',
       selected: 'Seleccionado',
       disabled: 'Deshabilitado',
+    },
+    error: {
+      title: 'Algo salió mal',
+      subtitle: 'Encontramos un error inesperado',
+      unknownError: 'Ocurrió un error desconocido',
+      fallback: {
+        title: 'Algo salió mal',
+        subtitle: 'Encontramos un error inesperado',
+        unknown: 'Ocurrió un error desconocido',
+        errorId: 'ID del Error',
+        errorName: 'Nombre del Error',
+        errorStack: 'Pila del Error',
+        technicalDetails: 'Detalles técnicos',
+        retry: 'Intentar de nuevo',
+        reset: 'Comenzar de nuevo',
+        retryAction: 'Reintentar última acción',
+        resetAction: 'Restablecer estado del error',
+        home: 'Ir al inicio',
+        homeAction: 'Ir a la página principal',
+        needHelp: '¿Necesita ayuda?',
+        supportText: 'Si este problema continúa, nuestro equipo de soporte está aquí para ayudar',
+        contactSupport: 'Contactar Soporte',
+        viewFAQ: 'Ver Preguntas Frecuentes',
+        faq: 'Ver Preguntas Frecuentes'
+      },
+      boundary: {
+        title: 'Algo salió mal',
+        subtitle: 'Ocurrió un error inesperado',
+        showDetails: 'Mostrar detalles del error',
+        componentStack: 'Pila de Componentes',
+        errorStack: 'Pila del Error',
+        errorId: 'ID del Error',
+        retry: 'Reintentar',
+        finalRetry: 'Reintentar Final',
+        reset: 'Restablecer',
+        goHome: 'Ir al Inicio',
+        support: 'Soporte',
+        contactSupport: 'Contactar Soporte'
+      },
+      toast: {
+        dismiss: 'Descartar notificación',
+        progressLabel: 'Progreso: {{progress}}%'
+      },
+      handler: {
+        networkError: 'Ocurrió un error de red',
+        validationError: 'Error de validación',
+        timeoutError: 'La operación excedió el tiempo límite',
+        unknownError: 'Ocurrió un error desconocido'
+      }
     },
     datePicker: {
       toggleCalendar: 'Alternar calendario',
