@@ -97,6 +97,23 @@ export interface TranslationDictionary {
     end: string;
     selectEnd: string;
   };
+  print: {
+    print: string;
+    printing: string;
+    preview: string;
+    download: string;
+    close: string;
+    preparing: string;
+    zoomIn: string;
+    zoomOut: string;
+    resetZoom: string;
+    pageInfo: string;
+    paperSize: string;
+    page: string;
+    poweredBy: string;
+    confidential: string;
+    watermark: string;
+  };
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -167,6 +184,23 @@ export const translations: Record<Language, TranslationDictionary> = {
       label: 'Language',
       english: 'English',
       spanish: 'Spanish',
+    },
+    print: {
+      print: 'Print',
+      printing: 'Printing...',
+      preview: 'Print Preview',
+      download: 'Download PDF',
+      close: 'Close',
+      preparing: 'Preparing document for printing...',
+      zoomIn: 'Zoom In',
+      zoomOut: 'Zoom Out',
+      resetZoom: 'Reset Zoom',
+      pageInfo: 'Page 1 of 1',
+      paperSize: 'A4',
+      page: 'Page',
+      poweredBy: 'Powered by NEPA',
+      confidential: 'Confidential',
+      watermark: 'DRAFT',
     },
     calendar: {
       ariaLabel: 'Calendar',
@@ -265,6 +299,23 @@ export const translations: Record<Language, TranslationDictionary> = {
       label: 'Idioma',
       english: 'Inglés',
       spanish: 'Español',
+    },
+    print: {
+      print: 'Imprimir',
+      printing: 'Imprimiendo...',
+      preview: 'Vista previa de impresión',
+      download: 'Descargar PDF',
+      close: 'Cerrar',
+      preparing: 'Preparando documento para impresión...',
+      zoomIn: 'Acercar',
+      zoomOut: 'Alejar',
+      resetZoom: 'Restablecer zoom',
+      pageInfo: 'Página 1 de 1',
+      paperSize: 'A4',
+      page: 'Página',
+      poweredBy: 'Desarrollado por NEPA',
+      confidential: 'Confidencial',
+      watermark: 'BORRADOR',
     },
     calendar: {
       ariaLabel: 'Calendario',
