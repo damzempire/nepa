@@ -4,7 +4,10 @@ import TimePicker from './components/TimePicker';
 import PaymentIntegration from './components/PaymentIntegration';
 import DataTable from './components/DataTable';
 import AdvancedFileUpload from './components/AdvancedFileUpload';
-import { Home, Zap, CreditCard, History, Settings, Clock, Table, Upload } from 'lucide-react';
+import ToastContainer from './components/ToastContainer';
+import NotificationDemo from './components/NotificationDemo';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { Home, Zap, CreditCard, History, Settings, Clock, Table, Upload, Bell } from 'lucide-react';
 
 interface SidebarItem {
   id: string;
@@ -94,6 +97,12 @@ const App: React.FC = () => {
       label: 'File Upload',
       icon: <Upload size={20} />,
       path: '/file-upload'
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: <Bell size={20} />,
+      path: '/notifications'
     },
     {
       id: 'settings',
@@ -342,6 +351,20 @@ const App: React.FC = () => {
           </div>
         );
 
+      case 'notifications':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Notification System</h2>
+              <p className="text-gray-600 mb-6">
+                Comprehensive toast notification system with multiple types, positions, and accessibility features.
+              </p>
+              
+              <NotificationDemo />
+            </div>
+          </div>
+        );
+
       case 'settings':
         return (
           <div className="space-y-6">
@@ -399,42 +422,47 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Sidebar */}
-        <Sidebar
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          activeItem={activeView}
-          onItemClick={handleSidebarItemClick}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-        />
+    <NotificationProvider>
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex">
+          {/* Sidebar */}
+          <Sidebar
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen(!sidebarOpen)}
+            activeItem={activeView}
+            onItemClick={handleSidebarItemClick}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+          />
 
-        {/* Main Content */}
-        <div className={`flex-1 transition-all duration-300 ${
-          sidebarCollapsed ? 'ml-16' : 'ml-64'
-        }`}>
-          {/* Mobile Menu Toggle */}
-          <div className="lg:hidden bg-white shadow-sm p-4 flex items-center justify-between">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">NEPA 💡</h1>
+          {/* Main Content */}
+          <div className={`flex-1 transition-all duration-300 ${
+            sidebarCollapsed ? 'ml-16' : 'ml-64'
+          }`}>
+            {/* Mobile Menu Toggle */}
+            <div className="lg:hidden bg-white shadow-sm p-4 flex items-center justify-between">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-lg hover:bg-gray-100"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-xl font-bold text-blue-600">NEPA 💡</h1>
+            </div>
+
+            {/* Page Content */}
+            <main className="p-6">
+              {renderContent()}
+            </main>
           </div>
-
-          {/* Page Content */}
-          <main className="p-6">
-            {renderContent()}
-          </main>
         </div>
+
+        {/* Toast Container */}
+        <ToastContainer position="top-right" maxVisible={5} />
       </div>
-    </div>
+    </NotificationProvider>
   );
 };
 
