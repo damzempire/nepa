@@ -60,6 +60,13 @@ model User {
   @@index([walletAddress])
   @@index([role])
   @@index([status])
+  @@index([email, status])
+  @@index([role, status])
+  @@index([createdAt])
+  @@index([lastLoginAt])
+  @@index([loginAttempts, lockedUntil])
+  @@index([twoFactorEnabled])
+  @@index([isEmailVerified, status])
 }
 
 model UserSession {
@@ -79,6 +86,10 @@ model UserSession {
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+  @@index([isActive, expiresAt])
+  @@index([userId, isActive])
+  @@index([createdAt])
+  @@index([ipAddress])
 }
 
 model UserProfile {
@@ -114,4 +125,8 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, resourceId])
+  @@index([severity, status])
 }

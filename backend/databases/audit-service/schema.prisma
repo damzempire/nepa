@@ -133,6 +133,11 @@ model AuditLog {
   @@index([status])
   @@index([retentionDate])
   @@index([isArchived])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, resourceId])
+  @@index([severity, status, createdAt])
+  @@index([correlationId, createdAt])
   @@map("audit_logs")
 }
 
