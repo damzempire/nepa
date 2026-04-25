@@ -10,6 +10,7 @@ import {
   Download
 } from 'lucide-react';
 import { LoadingTable } from './LoadingTable';
+import EmptyState, { SearchEmptyState } from './EmptyState';
 
 interface DataTableColumn {
   key: string;
@@ -399,11 +400,32 @@ export const DataTable: React.FC<DataTableProps> = ({
         
         {/* Empty state */}
         {!loading && paginatedData.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-2">
-              <Search size={48} className="mx-auto" />
-            </div>
-            <p className="text-gray-500">{emptyMessage}</p>
+          <div className="min-h-[200px]">
+            {searchTerm || Object.values(filters).some(value => value) ? (
+              <SearchEmptyState
+                searchTerm={searchTerm}
+                onClearSearch={() => {
+                  setSearchTerm('');
+                  setFilters({});
+                }}
+                onRefineSearch={() => setShowFilters(!showFilters)}
+              />
+            ) : (
+              <EmptyState
+                type="no-data"
+                title={emptyMessage}
+                description="There are no items to display at this time"
+                actions={[
+                  ...(onExport ? [{
+                    label: 'Export Data',
+                    onClick: () => handleExport('csv'),
+                    variant: 'secondary' as const,
+                    icon: <Download size={16} />
+                  }] : [])
+                ]}
+                size="medium"
+              />
+            )}
           </div>
         )}
       </div>
