@@ -22,6 +22,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { EnhancedChart, ChartDataPoint } from './charts/EnhancedChart';
 import { useTranslation } from '../i18n/useTranslation';
 import { trackEvent, getAnalyticsSummary, AnalyticsSummary } from '../services/analyticsService';
+import EmptyState, { ErrorEmptyState, LoadingEmptyState } from './EmptyState';
 
 interface AnalyticsData {
   summary: {
@@ -257,10 +258,11 @@ const AnalyticsDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{t('analytics.loading')}</p>
-        </div>
+        <LoadingEmptyState
+          title={t('analytics.loading')}
+          description="Please wait while we fetch your analytics data"
+          size="large"
+        />
       </div>
     );
   }
@@ -268,10 +270,18 @@ const AnalyticsDashboard: React.FC = () => {
   if (error || !data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <p className="text-destructive">{error || 'No data available'}</p>
-        </div>
+        <ErrorEmptyState
+          title={error || 'No data available'}
+          description="Please try again or contact support if the issue persists"
+          actions={[
+            {
+              label: 'Retry',
+              onClick: () => window.location.reload(),
+              variant: 'primary'
+            }
+          ]}
+          size="large"
+        />
       </div>
     );
   }

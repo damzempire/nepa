@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, Filter, Download, ChevronUp, ChevronDown, MoreVertical, Eye, Edit, Trash2, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import EmptyState, { SearchEmptyState } from './EmptyState';
 
 interface TableColumn {
   key: string;
@@ -383,8 +384,34 @@ export const AdvancedDataTable = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         ) : currentData.length === 0 ? (
-          <div className="text-center p-8">
-            <div className="text-gray-500">{emptyMessage}</div>
+          <div className="min-h-[200px]">
+            {searchQuery || (filtering && Object.values(filtering.values).some(value => value)) ? (
+              <SearchEmptyState
+                searchTerm={searchQuery}
+                onClearSearch={() => {
+                  setSearchQuery('');
+                  if (filtering) {
+                    filtering.onFilterChange({});
+                  }
+                }}
+                onRefineSearch={() => setShowFilters(!showFilters)}
+              />
+            ) : (
+              <EmptyState
+                type="no-data"
+                title={emptyMessage}
+                description="There are no items to display at this time"
+                actions={[
+                  ...(exportOptions ? [{
+                    label: 'Export Data',
+                    onClick: () => exportOptions.onExport('csv'),
+                    variant: 'secondary' as const,
+                    icon: <Download size={16} />
+                  }] : [])
+                ]}
+                size="medium"
+              />
+            )}
           </div>
         ) : (
           <table className="w-full">
