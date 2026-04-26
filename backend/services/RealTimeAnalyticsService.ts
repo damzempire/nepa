@@ -1,6 +1,13 @@
-import { Server as SocketIOServer } from 'socket.io';
-import { Server as HTTPServer } from 'http';
-import { AnalyticsService } from '../services/AnalyticsService';
+/**
+ * RealTimeAnalyticsService — broadcasts live analytics metrics to admin
+ * subscribers via the shared SocketServer singleton.
+ *
+ * The old implementation created its own `socket.io` Server instance.
+ * This version delegates all WebSocket I/O to SocketServer.
+ */
+
+import { SocketServer, ROOMS, SERVER_EVENTS, CLIENT_EVENTS } from '../SocketServer';
+import { AnalyticsService } from './AnalyticsService';
 
 interface RealTimeMetrics {
   timestamp: string;
@@ -15,153 +22,135 @@ interface RealTimeMetrics {
 }
 
 class RealTimeAnalyticsService {
-  private io: SocketIOServer;
   private analyticsService: AnalyticsService;
   private metricsInterval: NodeJS.Timeout | null = null;
+  private readonly BROADCAST_INTERVAL_MS = 30_000; // 30 seconds
 
-  constructor(server: HTTPServer) {
-    this.io = new SocketIOServer(server, {
-      cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
-        methods: ["GET", "POST"]
-      }
-    });
-    
+  constructor() {
     this.analyticsService = new AnalyticsService();
-    this.setupSocketHandlers();
   }
 
-  private setupSocketHandlers() {
-    this.io.on('connection', (socket) => {
-      console.log('Client connected to real-time analytics:', socket.id);
+  /**
+   * Wire up analytics-specific socket events and start the broadcast loop.
+   * Must be called once from server.ts after SocketServer has been initialised.
+   */
+  initialize(): void {
+    const io = SocketServer.getIO();
 
-      // Send initial metrics on connection
-      this.sendRealTimeMetrics(socket);
+    io.on('connection', (socket) => {
+      // Send a snapshot of current metrics to the newly connected client
+      this.fetchMetrics()
+        .then((metrics) => socket.emit(SERVER_EVENTS.ANALYTICS_UPDATE, { metrics, timestamp: new Date().toISOString() }))
+        .catch((err) => console.error('[RealTimeAnalyticsService] Initial metrics error:', err));
 
-      // Handle subscription to real-time updates
-      socket.on('subscribe-analytics', () => {
-        socket.join('analytics-updates');
-        console.log('Client subscribed to analytics updates:', socket.id);
-      });
-
-      // Handle unsubscription
-      socket.on('unsubscribe-analytics', () => {
-        socket.leave('analytics-updates');
-        console.log('Client unsubscribed from analytics updates:', socket.id);
-      });
-
-      // Handle custom date range requests
-      socket.on('get-metrics-range', async (data: { startDate: string; endDate: string }) => {
-        try {
-          const start = new Date(data.startDate);
-          const end = new Date(data.endDate);
-          const metrics = await this.getCustomRangeMetrics(start, end);
-          socket.emit('metrics-range-response', metrics);
-        } catch (error) {
-          socket.emit('analytics-error', { message: 'Failed to fetch custom range metrics' });
+      // Custom date-range request
+      socket.on(
+        'get_metrics_range',
+        async (data: { startDate: string; endDate: string }) => {
+          try {
+            const start = new Date(data.startDate);
+            const end = new Date(data.endDate);
+            const metrics = await this.fetchCustomRangeMetrics(start, end);
+            socket.emit('metrics_range_response', metrics);
+          } catch (err) {
+            socket.emit('analytics_error', { message: 'Failed to fetch custom range metrics' });
+          }
         }
-      });
+      );
 
-      socket.on('disconnect', () => {
-        console.log('Client disconnected from real-time analytics:', socket.id);
-      });
+      // subscribe_analytics / unsubscribe_analytics are handled by SocketServer
+      // (it joins/leaves ROOMS.analytics).  We only need to react to the
+      // connection event above to send the initial snapshot.
     });
 
-    // Start broadcasting metrics every 30 seconds
-    this.startMetricsBroadcast();
+    this.startBroadcast();
   }
 
-  private async getRealTimeMetrics(): Promise<RealTimeMetrics> {
-    try {
-      const [stats, todayRevenue] = await Promise.all([
-        this.analyticsService.getBillingStats(),
-        this.analyticsService.getDailyRevenue(1)
-      ]);
+  // ─── Metrics fetching ─────────────────────────────────────────────────────
 
-      const userMetrics = await this.analyticsService.getUserMetrics(1);
+  private async fetchMetrics(): Promise<RealTimeMetrics> {
+    const [stats, todayRevenue, userMetrics] = await Promise.all([
+      this.analyticsService.getBillingStats(),
+      this.analyticsService.getDailyRevenue(1),
+      this.analyticsService.getUserMetrics(1),
+    ]);
 
-      return {
-        timestamp: new Date().toISOString(),
-        totalRevenue: stats.totalRevenue,
-        overdueBills: stats.overdueBills,
-        pendingBills: stats.pendingBills,
-        successfulPayments: stats.successfulPayments,
-        failedPayments: stats.failedPayments,
-        successRate: stats.successRate,
-        todayRevenue: todayRevenue.reduce((sum, day) => sum + day.value, 0),
-        activeUsers: userMetrics.activeUsers
-      };
-    } catch (error) {
-      console.error('Error fetching real-time metrics:', error);
-      throw error;
-    }
+    return {
+      timestamp: new Date().toISOString(),
+      totalRevenue: stats.totalRevenue,
+      overdueBills: stats.overdueBills,
+      pendingBills: stats.pendingBills,
+      successfulPayments: stats.successfulPayments,
+      failedPayments: stats.failedPayments,
+      successRate: stats.successRate,
+      todayRevenue: todayRevenue.reduce((sum: number, day: any) => sum + day.value, 0),
+      activeUsers: userMetrics.activeUsers,
+    };
   }
 
-  private async getCustomRangeMetrics(startDate: Date, endDate: Date) {
+  private async fetchCustomRangeMetrics(startDate: Date, endDate: Date) {
+    const days = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     const [stats, revenueData, userGrowth, paymentTrends] = await Promise.all([
       this.analyticsService.getBillingStats(startDate, endDate),
-      this.analyticsService.getDailyRevenue(Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)), startDate, endDate),
-      this.analyticsService.getUserGrowth(Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))),
-      this.analyticsService.getPaymentTrends(Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+      this.analyticsService.getDailyRevenue(days, startDate, endDate),
+      this.analyticsService.getUserGrowth(days),
+      this.analyticsService.getPaymentTrends(days),
     ]);
 
     return {
       summary: stats,
-      charts: {
-        revenue: revenueData,
-        userGrowth,
-        paymentTrends
-      },
-      dateRange: { startDate, endDate }
+      charts: { revenue: revenueData, userGrowth, paymentTrends },
+      dateRange: { startDate, endDate },
     };
   }
 
-  private async sendRealTimeMetrics(socket?: any) {
-    try {
-      const metrics = await this.getRealTimeMetrics();
-      
-      if (socket) {
-        socket.emit('real-time-metrics', metrics);
-      } else {
-        // Broadcast to all subscribed clients
-        this.io.to('analytics-updates').emit('real-time-metrics', metrics);
+  // ─── Broadcast loop ───────────────────────────────────────────────────────
+
+  private startBroadcast(): void {
+    if (this.metricsInterval) clearInterval(this.metricsInterval);
+
+    this.metricsInterval = setInterval(async () => {
+      try {
+        const metrics = await this.fetchMetrics();
+        SocketServer.getInstance().emitAnalyticsUpdate(metrics);
+      } catch (err) {
+        console.error('[RealTimeAnalyticsService] Broadcast error:', err);
+        SocketServer.getIO()
+          .to(ROOMS.analytics)
+          .emit('analytics_error', { message: 'Failed to fetch real-time metrics' });
       }
-    } catch (error) {
-      console.error('Error sending real-time metrics:', error);
-      this.io.emit('analytics-error', { message: 'Failed to fetch real-time metrics' });
-    }
+    }, this.BROADCAST_INTERVAL_MS);
+
+    // Don't keep the process alive just for the interval
+    this.metricsInterval.unref?.();
+
+    console.log(
+      `[RealTimeAnalyticsService] Broadcast started (${this.BROADCAST_INTERVAL_MS / 1000}s interval)`
+    );
   }
 
-  private startMetricsBroadcast() {
-    // Clear any existing interval
-    if (this.metricsInterval) {
-      clearInterval(this.metricsInterval);
-    }
-
-    // Broadcast metrics every 30 seconds
-    this.metricsInterval = setInterval(() => {
-      this.sendRealTimeMetrics();
-    }, 30000);
-
-    console.log('Real-time analytics broadcast started (30-second intervals)');
-  }
-
-  public stopMetricsBroadcast() {
+  public stopBroadcast(): void {
     if (this.metricsInterval) {
       clearInterval(this.metricsInterval);
       this.metricsInterval = null;
-      console.log('Real-time analytics broadcast stopped');
+      console.log('[RealTimeAnalyticsService] Broadcast stopped');
     }
   }
 
-  // Method to trigger immediate metrics update (e.g., after a payment is processed)
-  public async triggerMetricsUpdate() {
-    await this.sendRealTimeMetrics();
-  }
-
-  // Get current socket.io instance for external use
-  public getIO() {
-    return this.io;
+  /**
+   * Trigger an immediate metrics push to all analytics subscribers.
+   * Useful after a payment is processed or a bill is generated.
+   */
+  public async triggerUpdate(): Promise<void> {
+    try {
+      const metrics = await this.fetchMetrics();
+      SocketServer.getInstance().emitAnalyticsUpdate(metrics);
+    } catch (err) {
+      console.error('[RealTimeAnalyticsService] triggerUpdate error:', err);
+    }
   }
 }
 
