@@ -115,9 +115,9 @@
     "@types/xlsx": "^0.0.36"
   },
   "scripts": {
-    "dev": "ts-node app.ts",
+    "dev": "ts-node server.ts",
     "build": "tsc",
-    "start": "node dist/app.js",
+    "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:generate-all": "bash scripts/generate-all-clients.sh",

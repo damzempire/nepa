@@ -1,4 +1,3 @@
-import { SocketServer } from './SocketServer';
 import { ConnectionPoolManager } from './ConnectionPoolManager';
 
 interface MemoryStats {
