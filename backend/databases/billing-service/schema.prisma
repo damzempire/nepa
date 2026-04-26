@@ -31,6 +31,10 @@ model Bill {
   @@index([utilityId])
   @@index([status])
   @@index([dueDate])
+  @@index([userId, status])
+  @@index([status, dueDate])
+  @@index([utilityId, status])
+  @@index([createdAt])
 }
 
 model Coupon {
@@ -42,4 +46,9 @@ model Coupon {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  
+  @@index([code])
+  @@index([expiryDate])
+  @@index([isActive, expiryDate])
+  @@index([type, isActive])
 }
